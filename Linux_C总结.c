@@ -1127,26 +1127,128 @@ int c = (*func)(1, 2);
 
 
 
+//Container_of
+在Linux内核中是一个常用的宏，用于从包含在某个结构中的指针获得结构本身的指针，
+//通俗地讲就是通过结构体变量中某个成员的首地址进而获得整个结构体变量的首地址。
+2>接口：
+container_of(ptr, type, member) 
+	ptr:表示结构体中member的地址
+	type:表示结构体类型
+	member:表示结构体中的成员
+通过ptr的地址可以返回结构体的首地址
+
+struct test_struct {
+          int num;
+          char ch;
+          float f1;
+  };
+ int main(void)
+  {
+          struct test_struct init_struct ={12,'a',12.3};
+          char *ptr_ch = &init_struct.ch;
+          struct test_struct *test_struct = container_of(ptr_ch,struct test_struct,ch);
+          
+          printf("test_struct->num =%d\n",test_struct->num);
+          printf("test_struct->ch =%c\n",test_struct->ch);
+          printf("test_struct->ch =%f\n",test_struct->f1);
+          return 0;
+  }
+执行结果：
+jibo@jibo-VirtualBox:~/cv_work/work/list/container_of $ ./main
+test_struct->num =12
+test_struct->ch =a
+test_struct->ch =12.300000
+
+
+//延时工作对列
+INIT_WORK( work, func );
+INIT_DELAYED_WORK( work, func );
+INIT_DELAYED_WORK_DEFERRABLE( work, func );
+INIT_DELAYED_WORK_DEFERRABLE(&chip->work, max17040_work);//把调度函数 max17040_work加入chip->work队列；
+
+//要经过一段延迟以后再执行工作
+schedule_delayed_work(delayed_work, delay);   //delay 是需要延迟的节拍数
+schedule_delayed_work(&chip->work, MAX17040_DELAY);  // 通过定时器调度队列 
+
+
+request_threaded_irq
+
+
+sys/class/power_supply/
 
 
 
+DATA_FORMAT 0x31寄存器控制寄存器0x32至0x37（即0x32 DATAX0 X轴数据0 , 0x33 DATAX1 X轴数据1（只读）， 0x34 DATAY0 Y轴数据0 , 0x35 DATAY1 Y轴数据1（只读）, 0x36 DATAZ0 Z轴数据0 , 0x37 DATAZ1 Z轴数据1（只读），其中DATAx/y/z0是低字节，DATAx/y/z1是高字节）的数据输出格式。超出±16 g范围以外的所有数据必须剪除，避免溢出。
+
+ODR: 输出数据速率
+ADXL345 通过三根线与 STM32 开发板连接，其中 IIC 总线接在 PB10 和 PB11 上面。 ADXL345 的两个中断输出， 选用其中的INT1，连接在 STM32 的 PF11 脚，另外这里的地址线是接 3.3V，所以 ADXL345 的地址是 0X1D，转换为 0X3A 写入， 0X3B 读取。（如果ALT ADDRESS脚(12脚)接地, ADXL345地址为0X53(不包含最低位)，0XA7写入和0XA6读取）
 
 
+我的STM32F4 Discovery上边有一个加速度传感器LIS302DL。在演示工程中，ST的工程师使用这个传感器做了个很令人羡慕的东西：解算开发板的姿态。当开发板倾斜时候，处于最上边的LED点亮，其他LED不亮。同时，用MicroUSB数据线将开发板连接电脑时，开发板就会虚拟成一个鼠标。倾斜开发板时，鼠标指针会向倾斜的方向移动。归根结底，就是牛B的ST工程师用加速度传感器完成了姿态解算。
+
+    在开发板上，加速度传感器使用了SPI方式用STM32F4芯片进行通信。STM32F4的SPI1 作为主机，与LIS302Dl进行通信，读取或者写入数据。由于我没有使用过STM32的SPI口，因此在板子的空余资源中找到了SPI2接口来做实验。实验是这样的：将SPI的MISO和MOSI脚相连。这样SPI发送了什么数据，就能接收到什么数据。不需要额外的器件就能试验。
+
+    引脚：将PB13、PB14、PB15三个引脚的复用功能，分别对应于SPI2SCK、SPI2MISO、SPI2MOSI。
+
+     引脚初始化：
+
+void SPI_GPIOConfig(void)
+{
+    GPIO_InitTypeDef GPIO_InitStructure;
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB,ENABLE);  //开启时钟
+    
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;  //引脚初始化
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOB,&GPIO_InitStructure);
+    
+    GPIO_PinAFConfig(GPIOB,GPIO_PinSource13,GPIO_AF_SPI2);  //打开引脚的复用功能
+    GPIO_PinAFConfig(GPIOB,GPIO_PinSource14,GPIO_AF_SPI2);
+    GPIO_PinAFConfig(GPIOB,GPIO_PinSource15,GPIO_AF_SPI2);
+}
+
+SPI2功能初始化：
+
+void SPI_Config(void)
+{
+    SPI_GPIOConfig();
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2,ENABLE);  //时钟
+    
+    SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;  //全双工模式
+    SPI_InitStructure.SPI_Mode = SPI_Mode_Master;   //作为主机使用
+    SPI_InitStructure.SPI_DataSize = SPI_DataSize_8b;   //数据长度8
+    SPI_InitStructure.SPI_CPOL  = SPI_CPOL_High;
+    SPI_InitStructure.SPI_CPHA = SPI_CPHA_1Edge;
+    SPI_InitStructure.SPI_NSS = SPI_NSS_Soft;   //软件设置NSS功能
+    SPI_InitStructure.SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_256;
+    SPI_InitStructure.SPI_FirstBit = SPI_FirstBit_MSB;
+    SPI_InitStructure.SPI_CRCPolynomial = 7;
+    SPI_Init(SPI2,&SPI_InitStructure);
+    SPI_Cmd(SPI2,ENABLE);
+}
+
+之后就可以收发数据了：
+
+void MySPI_SendData(char da)
+{
+    while(SPI_I2S_GetFlagStatus(SPI2,SPI_I2S_FLAG_TXE)==RESET);
+    SPI_SendData(SPI2,da);
+}
+
+uint8_t MySPI_ReceiveData(void)
+{
+    while(SPI_I2S_GetFlagStatus(SPI2,SPI_I2S_FLAG_RXNE)==RESET);
+    return SPI_ReceiveData(SPI2);
+}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  ADXL345_SetTapDetection(ADXL345_SINGLE_TAP |
+                            ADXL345_DOUBLE_TAP, // Tap type.
+                            ADXL345_TAP_X_EN,   // Axis control.
+                            0x10,               // Tap duration.
+                            0x10,               // Tap latency.
+                            0x40,               // Tap window. 
+                            0x10,               // Tap threshold.
+                            0x00);              // Interrupt Pin
